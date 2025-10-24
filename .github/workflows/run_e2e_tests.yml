@@ -1,0 +1,46 @@
+name: Run Postman Tests with Newman
+
+on:
+  workflow_dispatch:
+
+jobs:
+  postman-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install k6
+        run: |
+          curl -s https://dl.k6.io/key.gpg | sudo apt-key add -
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt update
+          sudo apt install -y k6
+
+      - name: Run performance test
+        run: k6 run ./tests/performance/load-test.js
+
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0  # Usa una versión más reciente
+        with:
+          target: 'http://51.8.11.177:8080'  # o la URL donde corre tu API Gateway
+          fail_action: false
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run Newman collection with environment variable
+        run: |
+          newman run api_gateway.postman_collection.json
+
