@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TK: ${{ secrets.GH_PAT }}
-      REPO: microservices-final-project/ci-templates
+      REPO: ecommerce-microservices-lab/ci-templates
       BRANCH: main
       WORKFLOW_FILE: run_e2e_tests.yml
       GH_WAIT_INTERVAL: 10
