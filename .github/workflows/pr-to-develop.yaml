@@ -53,7 +53,7 @@ jobs:
           git clone --depth=1 https://github.com/ecommerce-microservices-lab/ci-templates temp-templates
           cp temp-templates/sonar-project.properties .
 
-          sed -i "s/default-key/${{ steps.sanitize.outputs.sanitized_project_key }}-${{ steps.sanitize.outputs.safe_branch_name }}/" sonar-project.properties
+          sed -i "s/default-key/${{ steps.sanitize.outputs.sanitized_project_key }}/" sonar-project.properties
           sed -i "s/default-name/${{ steps.sanitize.outputs.sanitized_project_name }} (${{ steps.sanitize.outputs.safe_branch_name }})/" sonar-project.properties
 
       - name: Run Unit Tests
