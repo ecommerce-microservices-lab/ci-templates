@@ -55,6 +55,10 @@ jobs:
 
           sed -i "s/default-key/${{ steps.sanitize.outputs.sanitized_project_key }}/" sonar-project.properties
           sed -i "s/default-name/${{ steps.sanitize.outputs.sanitized_project_name }} (${{ steps.sanitize.outputs.safe_branch_name }})/" sonar-project.properties
+          # Ensure SonarCloud organization and projectKey are set in a parametrizable way
+          echo "sonar.organization=${{ github.repository_owner }}" >> sonar-project.properties
+          echo "sonar.projectKey=${{ github.repository_owner }}_${{ steps.sanitize.outputs.sanitized_project_key }}" >> sonar-project.properties
+          echo "sonar.projectName=${{ steps.sanitize.outputs.sanitized_project_name }}" >> sonar-project.properties
 
       - name: Run Unit Tests
         run: mvn test
