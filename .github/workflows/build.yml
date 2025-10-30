@@ -29,10 +29,26 @@ on:
         required: true
       ACR_NAME:
         required: true
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      RESOURCE_GROUP:
+        required: true
+      GITHUB_TOKEN:
+        required: true
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      image_name: ${{ steps.extract_name.outputs.simple_name }}
+      final_tag: ${{ steps.determine_tag.outputs.final_tag }}
+      service_name: ${{ steps.extract_name.outputs.simple_name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,3 +111,25 @@ jobs:
           push: true
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/${{ steps.extract_name.outputs.simple_name }}:${{ steps.determine_tag.outputs.final_tag }}
+      
+      - name: Output image info
+        id: image_info
+        run: |
+          echo "image_name=${{ steps.extract_name.outputs.simple_name }}" >> $GITHUB_OUTPUT
+          echo "final_tag=${{ steps.determine_tag.outputs.final_tag }}" >> $GITHUB_OUTPUT
+
+  deploy-to-k8s:
+    needs: build-and-push
+    uses: ecommerce-microservices-lab/ci-templates/.github/workflows/deploy-to-k8s.yml@main
+    with:
+      image_name: ${{ needs.build-and-push.outputs.image_name }}
+      image_tag: ${{ needs.build-and-push.outputs.final_tag }}
+      namespace: ${{ needs.build-and-push.outputs.final_tag }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+      ACR_NAME: ${{ secrets.ACR_NAME }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

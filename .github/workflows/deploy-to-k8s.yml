@@ -1,0 +1,130 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+      namespace:
+        required: true
+        type: string
+        description: The Kubernetes namespace to deploy to (dev, stage, prod)
+      manifest_path:
+        required: false
+        default: "infra/k8s/{{namespace}}/{{service}}.yaml"
+        type: string
+        description: Path to the Kubernetes manifest
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_CLIENT_SECRET:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      RESOURCE_GROUP:
+        required: true
+      ACR_NAME:
+        required: true
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract service name from image
+        id: extract_service
+        run: |
+          SERVICE_NAME=$(basename "${{ inputs.image_name }}")
+          echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Determine namespace from branch
+        id: determine_namespace
+        run: |
+          if [ "${{ inputs.image_tag }}" = "prod" ]; then
+            NAMESPACE="prod"
+          elif [ "${{ inputs.image_tag }}" = "stage" ]; then
+            NAMESPACE="stage"
+          else
+            NAMESPACE="dev"
+          fi
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+
+      - name: Set Azure credentials
+        uses: azure/login@v1
+        with:
+          creds: >-
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            }
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "latest"
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ secrets.RESOURCE_GROUP }}" \
+            --name microservices-cluster-prod \
+            --overwrite-existing
+
+      - name: Clone infra repository
+        run: |
+          git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/ecommerce-microservices-lab/infra.git infra-repo
+
+      - name: Update manifest with new image
+        run: |
+          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          MANIFEST_PATH="infra-repo/infra/k8s/$NAMESPACE/$SERVICE.yaml"
+          NEW_IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/$SERVICE:${{ inputs.image_tag }}"
+          
+          # Check if manifest exists
+          if [ ! -f "$MANIFEST_PATH" ]; then
+            echo "❌ Manifest not found: $MANIFEST_PATH"
+            exit 1
+          fi
+          
+          echo "📝 Found manifest: $MANIFEST_PATH"
+          
+          # Update image tag
+          sed -i "s|image:.*$SERVICE:|image: $NEW_IMAGE|" "$MANIFEST_PATH"
+          
+          echo "✅ Updated image to: $NEW_IMAGE"
+
+      - name: Apply Kubernetes manifest
+        run: |
+          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          MANIFEST_PATH="infra-repo/infra/k8s/$NAMESPACE/$SERVICE.yaml"
+          
+          kubectl apply -f "$MANIFEST_PATH"
+          echo "✅ Manifest applied successfully"
+
+      - name: Wait for rollout to complete
+        run: |
+          kubectl rollout status deployment/${{ steps.extract_service.outputs.service_name }} \
+            --namespace="${{ steps.determine_namespace.outputs.namespace }}" \
+            --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          kubectl get deployment ${{ steps.extract_service.outputs.service_name }} \
+            --namespace="${{ steps.determine_namespace.outputs.namespace }}" \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo ""
+
