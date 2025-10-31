@@ -62,8 +62,7 @@ jobs:
           az aks get-credentials \
             --resource-group "${{ secrets.RESOURCE_GROUP }}" \
             --name microservices-cluster-prod \
-            --overwrite-existing \
-            --api-version 2025-04-01
+            --overwrite-existing
 
       - name: Get API Gateway IP
         id: get_ip
