@@ -136,8 +136,8 @@ jobs:
           
           echo "📝 Found manifest: $MANIFEST_PATH"
           
-          # Update image tag
-          sed -i "s|image:.*$SERVICE:|image: $NEW_IMAGE|" "$MANIFEST_PATH"
+          # Update image line robustly (replace entire line)
+          sed -E -i "s|^([[:space:]]*image:[[:space:]]*).*$|\1$NEW_IMAGE|" "$MANIFEST_PATH"
           
           echo "✅ Updated image to: $NEW_IMAGE"
 
