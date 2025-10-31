@@ -29,8 +29,12 @@ jobs:
   postman-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout ci-templates repo
         uses: actions/checkout@v3
+        with:
+          repository: ecommerce-microservices-lab/ci-templates
+          ref: main
+          path: ci-templates
 
       - name: Set Azure credentials
         uses: azure/login@v1
@@ -93,7 +97,7 @@ jobs:
           echo "📝 Updating Postman collection with URL: $API_URL"
           
           # Update the url variable in the collection
-          sed -i "s|\"value\": \"http://.*/app/api\"|\"value\": \"$API_URL\"|" api_gateway.postman_collection.json
+          sed -i "s|\"value\": \"http://.*/app/api\"|\"value\": \"$API_URL\"|" ci-templates/api_gateway.postman_collection.json
           
           echo "✅ Updated Postman collection"
 
@@ -105,7 +109,7 @@ jobs:
           echo "📝 Updating K6 test with URL: $API_URL"
           
           # Update the URL in the K6 test
-          sed -i "s|http://.*:8080/actuator/health|$API_URL|" tests/performance/load-test.js
+          sed -i "s|http://.*:8080/actuator/health|$API_URL|" ci-templates/tests/performance/load-test.js
           
           echo "✅ Updated K6 test"
 
@@ -122,7 +126,7 @@ jobs:
           sudo apt install -y k6
 
       - name: Run performance test
-        run: k6 run ./tests/performance/load-test.js
+        run: k6 run ci-templates/tests/performance/load-test.js
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
@@ -135,5 +139,5 @@ jobs:
 
       - name: Run Newman collection with dynamic URL
         run: |
-          newman run api_gateway.postman_collection.json
+          newman run ci-templates/api_gateway.postman_collection.json
 
