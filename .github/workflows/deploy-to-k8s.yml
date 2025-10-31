@@ -65,16 +65,15 @@ jobs:
               "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
             }
 
+      - name: Upgrade Azure CLI
+        run: |
+          az upgrade --yes
+          echo "✅ Azure CLI upgraded successfully"
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: "latest"
-
-      - name: Install/upgrade Azure CLI to compatible version
-        run: |
-          # Install latest stable Azure CLI
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-          az version
 
       - name: Get AKS credentials
         run: |
