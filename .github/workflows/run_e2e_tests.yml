@@ -6,12 +6,12 @@ on:
       namespace:
         description: 'Namespace to test (dev, stage, prod)'
         required: false
-        default: 'stage'
+        default: 'dev'
   workflow_call:
     inputs:
       namespace:
         required: false
-        default: 'stage'
+        default: 'dev'
         type: string
     secrets:
       AZURE_CLIENT_ID:

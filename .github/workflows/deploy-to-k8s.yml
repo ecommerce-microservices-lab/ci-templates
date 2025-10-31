@@ -50,13 +50,8 @@ jobs:
       - name: Determine namespace from branch
         id: determine_namespace
         run: |
-          if [ "${{ inputs.image_tag }}" = "prod" ]; then
-            NAMESPACE="prod"
-          elif [ "${{ inputs.image_tag }}" = "stage" ]; then
-            NAMESPACE="stage"
-          else
-            NAMESPACE="dev"
-          fi
+          # Todos los ambientes usan el namespace 'dev'
+          NAMESPACE="dev"
           echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
 
       - name: Set Azure credentials
