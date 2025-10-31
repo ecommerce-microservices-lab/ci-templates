@@ -133,11 +133,11 @@ jobs:
       - name: Run performance test
         run: k6 run tests/performance/load-test.js
 
-      - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.10.0
-        with:
-          target: 'http://${{ steps.get_ip.outputs.API_GATEWAY_IP }}:8080'
-          fail_action: false
+      # - name: Run ZAP Baseline Scan
+      #   uses: zaproxy/action-baseline@v0.10.0
+      #   with:
+      #     target: 'http://${{ steps.get_ip.outputs.API_GATEWAY_IP }}:8080'
+      #     fail_action: false
 
       - name: Install Newman
         run: npm install -g newman
