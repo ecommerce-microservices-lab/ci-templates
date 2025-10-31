@@ -150,6 +150,14 @@ jobs:
           kubectl apply -f "$MANIFEST_PATH"
           echo "✅ Manifest applied successfully"
 
+      - name: Enforce final image (safety)
+        run: |
+          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          FINAL_IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/$SERVICE:${{ inputs.image_tag }}"
+          kubectl set image deploy/$SERVICE $SERVICE=$FINAL_IMAGE -n "$NAMESPACE"
+          echo "🔒 Enforced image: $FINAL_IMAGE"
+
       - name: Wait for rollout to complete
         run: |
           kubectl rollout status deployment/${{ steps.extract_service.outputs.service_name }} \
