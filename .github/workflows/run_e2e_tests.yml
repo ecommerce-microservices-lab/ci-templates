@@ -95,6 +95,12 @@ jobs:
           
           echo "📝 Updating Postman collection with URL: $API_URL"
           
+          # Debug: list files
+          pwd
+          ls -la
+          echo "Looking for postman collection..."
+          find . -name "*postman*" -type f
+          
           # Update the url variable in the collection
           sed -i "s|\"value\": \"http://.*/app/api\"|\"value\": \"$API_URL\"|" api_gateway.postman_collection.json
           
