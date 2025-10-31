@@ -39,7 +39,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"username\": \"kofi\",\r\n    \"password\": \"Hola1597!!!\"\r\n}",
+                            "raw": "{\r\n    \"username\": \"santiesleo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -133,7 +133,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"username\": \"alejo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}",
+                            "raw": "{\r\n    \"username\": \"santiesleo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -220,7 +220,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n    \"username\": \"kofi\",\r\n    \"password\": \"Hola1597!!!\"\r\n}"
+                                        "raw": "{\r\n    \"username\": \"santiesleo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}"
 										},
 										"url": {
 											"raw": "{{url}}/users",
@@ -648,7 +648,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n    \"username\": \"kofiSSS\",\r\n    \"password\": \"Hola1597!!!\",\r\n    \"roleBasedAuthority\": \"ROLE_USER\",\r\n    \"isEnabled\": true,\r\n    \"isAccountNonExpired\": true,\r\n    \"isAccountNonLocked\": true,\r\n    \"isCredentialsNonExpired\": true,\r\n    \"user\": {\r\n        \"userId\": \"8\"\r\n    }\r\n}",
+											"raw": "{\r\n    \"username\": \"santiesleoTEST\",\r\n    \"password\": \"Hola1597!!!\",\r\n    \"roleBasedAuthority\": \"ROLE_USER\",\r\n    \"isEnabled\": true,\r\n    \"isAccountNonExpired\": true,\r\n    \"isAccountNonLocked\": true,\r\n    \"isCredentialsNonExpired\": true,\r\n    \"user\": {\r\n        \"userId\": \"8\"\r\n    }\r\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1081,7 +1081,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n    \"username\": \"kofiS\",\r\n    \"password\": \"Hola1597!!!\",\r\n    \"roleBasedAuthority\": \"ROLE_USER\",\r\n    \"isEnabled\": true,\r\n    \"isAccountNonExpired\": true,\r\n    \"isAccountNonLocked\": true,\r\n    \"isCredentialsNonExpired\": true,\r\n    \"user\": {\r\n        \"userId\": \"6\"\r\n    }\r\n}",
+											"raw": "{\r\n    \"username\": \"santiesleoTest\",\r\n    \"password\": \"Hola1597!!!\",\r\n    \"roleBasedAuthority\": \"ROLE_USER\",\r\n    \"isEnabled\": true,\r\n    \"isAccountNonExpired\": true,\r\n    \"isAccountNonLocked\": true,\r\n    \"isCredentialsNonExpired\": true,\r\n    \"user\": {\r\n        \"userId\": \"6\"\r\n    }\r\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1122,7 +1122,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n    \"username\": \"kofiS\",\r\n    \"password\": \"Hola1597!!!\",\r\n    \"roleBasedAuthority\": \"ROLE_USER\",\r\n    \"isEnabled\": true,\r\n    \"isAccountNonExpired\": true,\r\n    \"isAccountNonLocked\": true,\r\n    \"isCredentialsNonExpired\": true,\r\n    \"user\": {\r\n        \"userId\": \"6\"\r\n    }\r\n}"
+											"raw": "{\r\n    \"username\": \"santiesleoTest\",\r\n    \"password\": \"Hola1597!!!\",\r\n    \"roleBasedAuthority\": \"ROLE_USER\",\r\n    \"isEnabled\": true,\r\n    \"isAccountNonExpired\": true,\r\n    \"isAccountNonLocked\": true,\r\n    \"isCredentialsNonExpired\": true,\r\n    \"user\": {\r\n        \"userId\": \"6\"\r\n    }\r\n}"
 										},
 										"url": {
 											"raw": "{{url}}/credentials/2",
@@ -1910,7 +1910,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n    \"username\": \"alejo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}"
+                                            "raw": "{\r\n    \"username\": \"santiesleo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}"
 										},
 										"url": {
 											"raw": "{{url}}/products",
@@ -1978,7 +1978,7 @@
 										"header": [],
 										"body": {
 											"mode": "raw",
-											"raw": "{\r\n    \"username\": \"alejo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}"
+                                            "raw": "{\r\n    \"username\": \"santiesleo\",\r\n    \"password\": \"Hola1597!!!\"\r\n}"
 										},
 										"url": {
 											"raw": "{{url}}/products/1",
