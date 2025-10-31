@@ -31,6 +31,10 @@ on:
         required: true
       ACR_NAME:
         required: true
+      ACR_USERNAME:
+        required: true
+      ACR_PASSWORD:
+        required: true
       GH_TOKEN:
         required: true
 
@@ -100,6 +104,23 @@ jobs:
           fi
           cd -
 
+      - name: Verify image tag exists in ACR
+        run: |
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          TAGS=$(az acr repository show-tags -n "${{ secrets.ACR_NAME }}" --repository "$SERVICE" -o tsv || true)
+          echo "Tags in ACR for $SERVICE:" $TAGS
+          echo "$TAGS" | grep -q "\b${{ inputs.image_tag }}\b" || { echo "❌ Tag not found in ACR: $SERVICE:${{ inputs.image_tag }}"; exit 1; }
+
+      - name: Ensure acr-secret exists in namespace
+        run: |
+          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          kubectl get secret acr-secret -n "$NAMESPACE" >/dev/null 2>&1 || \
+          kubectl create secret docker-registry acr-secret \
+            --docker-server="${{ secrets.ACR_NAME }}.azurecr.io" \
+            --docker-username="${{ secrets.ACR_USERNAME }}" \
+            --docker-password="${{ secrets.ACR_PASSWORD }}" \
+            -n "$NAMESPACE"
+
       - name: Update manifest with new image
         run: |
           NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
@@ -135,10 +156,13 @@ jobs:
             --namespace="${{ steps.determine_namespace.outputs.namespace }}" \
             --timeout=5m
 
-      - name: Verify deployment
+      - name: Diagnostics on failure
+        if: failure()
         run: |
-          kubectl get deployment ${{ steps.extract_service.outputs.service_name }} \
-            --namespace="${{ steps.determine_namespace.outputs.namespace }}" \
-            -o jsonpath='{.spec.template.spec.containers[0].image}'
-          echo ""
+          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          echo "=== Events ===" && kubectl get events -n "$NAMESPACE" --sort-by=.lastTimestamp | tail -n 50 || true
+          echo "=== Describe deployment ===" && kubectl describe deploy "$SERVICE" -n "$NAMESPACE" || true
+          RS=$(kubectl get rs -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" -o name | tail -n1 || true)
+          [ -n "$RS" ] && echo "=== Describe ReplicaSet $RS ===" && kubectl describe "$RS" -n "$NAMESPACE" || true
 
