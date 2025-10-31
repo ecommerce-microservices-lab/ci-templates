@@ -88,6 +88,51 @@ jobs:
           echo "❌ Failed to get API Gateway IP"
           exit 1
 
+      - name: Verify Services in Eureka
+        run: |
+          NAMESPACE="${{ inputs.namespace }}"
+          
+          echo "🔍 Verifying all services are registered in Eureka..."
+          
+          # Port-forward Eureka temporarily
+          kubectl port-forward -n "$NAMESPACE" svc/service-discovery 8761:8761 > /dev/null 2>&1 &
+          EUREKA_PF_PID=$!
+          sleep 5
+          
+          # Expected services
+          EXPECTED_SERVICES=("API-GATEWAY" "USER-SERVICE" "PRODUCT-SERVICE" "PAYMENT-SERVICE" "ORDER-SERVICE" "SHIPPING-SERVICE" "PROXY-CLIENT")
+          
+          for i in {1..30}; do
+            REGISTERED=$(curl -s http://localhost:8761/eureka/apps | grep -o '<name>[^<]*</name>' | grep -v 'MyOwn' || echo "")
+            
+            ALL_REGISTERED=true
+            MISSING=()
+            
+            for svc in "${EXPECTED_SERVICES[@]}"; do
+              if echo "$REGISTERED" | grep -q "$svc"; then
+                echo "  ✅ $svc"
+              else
+                echo "  ❌ $svc - missing"
+                MISSING+=("$svc")
+                ALL_REGISTERED=false
+              fi
+            done
+            
+            if [ "$ALL_REGISTERED" = true ]; then
+              echo "✅ All services registered in Eureka"
+              kill $EUREKA_PF_PID 2>/dev/null
+              exit 0
+            fi
+            
+            echo "⏳ Waiting for services... (attempt $i/30)"
+            sleep 5
+          done
+          
+          echo "❌ Failed to register all services in Eureka"
+          echo "   Missing: ${MISSING[@]}"
+          kill $EUREKA_PF_PID 2>/dev/null
+          exit 1
+
       - name: Update Postman collection with dynamic IP
         run: |
           API_IP="${{ steps.get_ip.outputs.API_GATEWAY_IP }}"
