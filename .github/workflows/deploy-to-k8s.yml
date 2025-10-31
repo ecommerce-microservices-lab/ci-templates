@@ -31,7 +31,7 @@ on:
         required: true
       ACR_NAME:
         required: true
-      GITHUB_TOKEN:
+      GH_TOKEN:
         required: true
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
 
       - name: Clone infra repository
         run: |
-          git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/ecommerce-microservices-lab/infra.git infra-repo
+          git clone https://${{ secrets.GH_TOKEN }}@github.com/ecommerce-microservices-lab/infra.git infra-repo
 
       - name: Update manifest with new image
         run: |
