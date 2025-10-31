@@ -100,7 +100,7 @@ jobs:
           sleep 5
           
           # Expected services
-          EXPECTED_SERVICES=("API-GATEWAY" "USER-SERVICE" "PRODUCT-SERVICE" "PAYMENT-SERVICE" "ORDER-SERVICE" "SHIPPING-SERVICE" "PROXY-CLIENT")
+          EXPECTED_SERVICES=("API-GATEWAY" "USER-SERVICE" "PRODUCT-SERVICE" "PAYMENT-SERVICE" "ORDER-SERVICE" "SHIPPING-SERVICE" "FAVOURITE-SERVICE" "PROXY-CLIENT")
           
           for i in {1..30}; do
             REGISTERED=$(curl -s http://localhost:8761/eureka/apps | grep -o '<name>[^<]*</name>' | grep -v 'MyOwn' || echo "")
