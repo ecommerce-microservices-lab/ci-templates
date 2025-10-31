@@ -47,7 +47,7 @@ jobs:
         run: |
           # Install specific compatible version to avoid API version issues
           pip3 install --user azure-cli==2.56.0 || true
-          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
           az version
 
       - name: Install kubectl
@@ -57,7 +57,8 @@ jobs:
 
       - name: Get AKS credentials
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
+          which az
+          az version
           az aks get-credentials \
             --resource-group "${{ secrets.RESOURCE_GROUP }}" \
             --name microservices-cluster-prod \
