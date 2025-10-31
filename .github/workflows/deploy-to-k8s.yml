@@ -90,12 +90,21 @@ jobs:
       - name: Clone infra repository
         run: |
           git clone https://${{ secrets.GH_TOKEN }}@github.com/ecommerce-microservices-lab/infra.git infra-repo
+          cd infra-repo
+          if [ "${{ inputs.image_tag }}" = "stage" ]; then
+            git checkout stage || true
+          elif [ "${{ inputs.image_tag }}" = "prod" ]; then
+            git checkout main || true
+          else
+            git checkout main || true
+          fi
+          cd -
 
       - name: Update manifest with new image
         run: |
           NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
-          MANIFEST_PATH="infra-repo/infra/k8s/$NAMESPACE/$SERVICE.yaml"
+          MANIFEST_PATH="infra-repo/k8s/$NAMESPACE/$SERVICE.yaml"
           NEW_IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/$SERVICE:${{ inputs.image_tag }}"
           
           # Check if manifest exists
@@ -115,7 +124,7 @@ jobs:
         run: |
           NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
-          MANIFEST_PATH="infra-repo/infra/k8s/$NAMESPACE/$SERVICE.yaml"
+          MANIFEST_PATH="infra-repo/k8s/$NAMESPACE/$SERVICE.yaml"
           
           kubectl apply -f "$MANIFEST_PATH"
           echo "✅ Manifest applied successfully"
