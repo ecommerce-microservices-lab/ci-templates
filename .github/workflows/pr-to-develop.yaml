@@ -64,7 +64,7 @@ jobs:
         run: mvn test
 
       - name: Run Integration Tests
-        run: mvn verify -DskipTests=false -Pintegration
+        run: mvn verify -DskipTests=false
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
