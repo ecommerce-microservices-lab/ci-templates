@@ -27,6 +27,8 @@ on:
         required: true
       ACR_PASSWORD:
         required: true
+      GH_TOKEN:
+        required: true
 
 jobs:
   build-and-deploy:
