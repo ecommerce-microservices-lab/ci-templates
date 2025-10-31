@@ -83,7 +83,8 @@ jobs:
           az aks get-credentials \
             --resource-group "${{ secrets.RESOURCE_GROUP }}" \
             --name microservices-cluster-prod \
-            --overwrite-existing
+            --overwrite-existing \
+            --api-version 2025-04-01
 
       - name: Clone infra repository
         run: |
