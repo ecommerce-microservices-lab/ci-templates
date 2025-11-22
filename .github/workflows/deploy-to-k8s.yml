@@ -37,6 +37,12 @@ on:
         required: true
       GH_TOKEN:
         required: true
+      GCP_SERVICE_ACCOUNT_KEY:
+        required: false
+      GCP_PROJECT_ID:
+        required: false
+      GCP_ZONE:
+        required: false
 
 jobs:
   deploy:
@@ -51,14 +57,24 @@ jobs:
           SERVICE_NAME=$(basename "${{ inputs.image_name }}")
           echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
 
-      - name: Determine namespace from branch
-        id: determine_namespace
+      - name: Determine cloud provider and namespace
+        id: cloud_config
         run: |
-          # Todos los ambientes usan el namespace 'dev'
-          NAMESPACE="dev"
-          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          # Si el tag es 'prod', usar GCP GKE con namespace 'prod'
+          # Si el tag es 'stage' o 'dev', usar Azure AKS con namespace 'dev'
+          if [ "${{ inputs.image_tag }}" = "prod" ]; then
+            echo "provider=gcp" >> $GITHUB_OUTPUT
+            echo "namespace=prod" >> $GITHUB_OUTPUT
+            echo "cluster_name=microservices-cluster-gke-prod" >> $GITHUB_OUTPUT
+            echo "zone=us-central1-a" >> $GITHUB_OUTPUT
+          else
+            echo "provider=azure" >> $GITHUB_OUTPUT
+            echo "namespace=dev" >> $GITHUB_OUTPUT
+            echo "cluster_name=microservices-cluster-prod" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Set Azure credentials
+      - name: Set Azure credentials (for Azure AKS)
+        if: steps.cloud_config.outputs.provider == 'azure'
         uses: azure/login@v1
         with:
           creds: >-
@@ -70,26 +86,46 @@ jobs:
             }
 
       - name: Clear Azure CLI MSAL cache
+        if: steps.cloud_config.outputs.provider == 'azure'
         run: rm -f ~/.azure/msal_http_cache.bin
 
       - name: Upgrade Azure CLI to latest
+        if: steps.cloud_config.outputs.provider == 'azure'
         run: |
           az upgrade --yes
           az version
+
+      - name: Authenticate to Google Cloud (for GCP GKE)
+        if: steps.cloud_config.outputs.provider == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK (for GCP GKE)
+        if: steps.cloud_config.outputs.provider == 'gcp'
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: "latest"
 
-      - name: Get AKS credentials
+      - name: Get AKS credentials (Azure)
+        if: steps.cloud_config.outputs.provider == 'azure'
         run: |
           which az
           az version
           az aks get-credentials \
             --resource-group "${{ secrets.RESOURCE_GROUP }}" \
-            --name microservices-cluster-prod \
+            --name "${{ steps.cloud_config.outputs.cluster_name }}" \
             --overwrite-existing
+
+      - name: Get GKE credentials (GCP)
+        if: steps.cloud_config.outputs.provider == 'gcp'
+        run: |
+          gcloud container clusters get-credentials "${{ steps.cloud_config.outputs.cluster_name }}" \
+            --zone "${{ steps.cloud_config.outputs.zone }}" \
+            --project "${{ secrets.GCP_PROJECT_ID }}"
 
       - name: Clone infra repository
         run: |
@@ -113,7 +149,7 @@ jobs:
 
       - name: Ensure acr-secret exists in namespace
         run: |
-          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           kubectl get secret acr-secret -n "$NAMESPACE" >/dev/null 2>&1 || \
           kubectl create secret docker-registry acr-secret \
             --docker-server="${{ secrets.ACR_NAME }}.azurecr.io" \
@@ -121,9 +157,37 @@ jobs:
             --docker-password="${{ secrets.ACR_PASSWORD }}" \
             -n "$NAMESPACE"
 
+      - name: Apply RBAC (ServiceAccounts, Roles, RoleBindings)
+        run: |
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
+          echo "🔐 Applying RBAC in namespace: $NAMESPACE"
+          
+          # Lista de servicios
+          SERVICES=("api-gateway" "cloud-config" "service-discovery" "user-service" "product-service" "order-service" "payment-service" "shipping-service" "favourite-service" "proxy-client")
+          
+          # Aplicar RBAC para cada servicio
+          for SERVICE in "${SERVICES[@]}"; do
+            echo "📦 Applying RBAC for $SERVICE..."
+            
+            # Verificar que los manifiestos existen
+            if [ ! -f "infra-repo/k8s/rbac/$SERVICE/serviceaccount.yaml" ]; then
+              echo "⚠️  ServiceAccount not found for $SERVICE, skipping..."
+              continue
+            fi
+            
+            # Aplicar ServiceAccount, Role y RoleBinding
+            sed "s/namespace: prod/namespace: $NAMESPACE/g" "infra-repo/k8s/rbac/$SERVICE/serviceaccount.yaml" | kubectl apply -f - || true
+            sed "s/namespace: prod/namespace: $NAMESPACE/g" "infra-repo/k8s/rbac/$SERVICE/role.yaml" | kubectl apply -f - || true
+            sed "s/namespace: prod/namespace: $NAMESPACE/g" "infra-repo/k8s/rbac/$SERVICE/rolebinding.yaml" | kubectl apply -f - || true
+            
+            echo "✅ RBAC applied for $SERVICE"
+          done
+          
+          echo "✅ RBAC applied successfully for namespace: $NAMESPACE"
+
       - name: Update manifest with new image
         run: |
-          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
           MANIFEST_PATH="infra-repo/k8s/$NAMESPACE/$SERVICE.yaml"
           NEW_IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/$SERVICE:${{ inputs.image_tag }}"
@@ -143,7 +207,7 @@ jobs:
 
       - name: Apply Kubernetes manifest
         run: |
-          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
           MANIFEST_PATH="infra-repo/k8s/$NAMESPACE/$SERVICE.yaml"
           
@@ -152,7 +216,7 @@ jobs:
 
       - name: Enforce final image (safety)
         run: |
-          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
           FINAL_IMAGE="${{ secrets.ACR_NAME }}.azurecr.io/$SERVICE:${{ inputs.image_tag }}"
           kubectl set image deploy/$SERVICE $SERVICE=$FINAL_IMAGE -n "$NAMESPACE"
@@ -161,13 +225,13 @@ jobs:
       - name: Wait for rollout to complete
         run: |
           kubectl rollout status deployment/${{ steps.extract_service.outputs.service_name }} \
-            --namespace="${{ steps.determine_namespace.outputs.namespace }}" \
+            --namespace="${{ steps.cloud_config.outputs.namespace }}" \
             --timeout=5m
 
       - name: Diagnostics on failure
         if: failure()
         run: |
-          NAMESPACE="${{ steps.determine_namespace.outputs.namespace }}"
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
           echo "=== Events ===" && kubectl get events -n "$NAMESPACE" --sort-by=.lastTimestamp | tail -n 50 || true
           echo "=== Describe deployment ===" && kubectl describe deploy "$SERVICE" -n "$NAMESPACE" || true

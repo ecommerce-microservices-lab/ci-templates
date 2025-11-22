@@ -41,6 +41,12 @@ on:
         required: true
       GH_TOKEN:
         required: true
+      GCP_SERVICE_ACCOUNT_KEY:
+        required: false
+      GCP_PROJECT_ID:
+        required: false
+      GCP_ZONE:
+        required: false
 
 jobs:
   build-and-push:
@@ -79,12 +85,17 @@ jobs:
       - name: Determine final tag
         id: determine_tag
         run: |
+          # Mapeo según estrategia de branching:
+          # main → :prod (producción en GCP GKE)
+          # develop → :stage (staging en Azure AKS)
+          # stage → :stage (staging en Azure AKS)
+          # otros → :dev (desarrollo en Azure AKS)
           if [ "${{ inputs.image_tag }}" = "main" ]; then
             echo "final_tag=prod" >> $GITHUB_OUTPUT
-          elif [ "${{ inputs.image_tag }}" = "develop" ]; then
+          elif [ "${{ inputs.image_tag }}" = "develop" ] || [ "${{ inputs.image_tag }}" = "stage" ]; then
             echo "final_tag=stage" >> $GITHUB_OUTPUT
           else
-            echo "final_tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+            echo "final_tag=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Build Docker image (without pushing)
@@ -135,3 +146,6 @@ jobs:
       ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
       ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_ZONE: ${{ secrets.GCP_ZONE }}
