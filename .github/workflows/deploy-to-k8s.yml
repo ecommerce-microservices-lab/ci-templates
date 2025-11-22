@@ -85,6 +85,12 @@ jobs:
               "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
             }
 
+      - name: Verify Azure authentication
+        run: |
+          echo "Verifying Azure authentication..."
+          az account show || { echo "❌ Azure authentication failed"; exit 1; }
+          echo "✅ Azure authentication successful"
+
       - name: Clear Azure CLI MSAL cache
         run: rm -f ~/.azure/msal_http_cache.bin
 
