@@ -132,6 +132,11 @@ jobs:
         if: steps.cloud_config.outputs.provider == 'gcp'
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Install gke-gcloud-auth-plugin (for GCP GKE)
+        if: steps.cloud_config.outputs.provider == 'gcp'
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
         with:
