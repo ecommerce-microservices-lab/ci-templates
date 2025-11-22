@@ -73,8 +73,8 @@ jobs:
             echo "cluster_name=microservices-cluster-prod" >> $GITHUB_OUTPUT
           fi
 
-      - name: Set Azure credentials (for Azure AKS)
-        if: steps.cloud_config.outputs.provider == 'azure'
+      - name: Set Azure credentials (for ACR access and Azure AKS)
+        # Always authenticate with Azure because ACR is in Azure, even when deploying to GCP
         uses: azure/login@v1
         with:
           creds: >-
@@ -86,11 +86,9 @@ jobs:
             }
 
       - name: Clear Azure CLI MSAL cache
-        if: steps.cloud_config.outputs.provider == 'azure'
         run: rm -f ~/.azure/msal_http_cache.bin
 
       - name: Upgrade Azure CLI to latest
-        if: steps.cloud_config.outputs.provider == 'azure'
         run: |
           az upgrade --yes
           az version
