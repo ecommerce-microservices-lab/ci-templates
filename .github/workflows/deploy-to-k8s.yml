@@ -254,6 +254,19 @@ jobs:
           kubectl set image deploy/$SERVICE $SERVICE=$FINAL_IMAGE -n "$NAMESPACE"
           echo "🔒 Enforced image: $FINAL_IMAGE"
 
+      - name: Check deployment status before rollout
+        run: |
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          echo "=== Deployment Status ==="
+          kubectl get deployment "$SERVICE" -n "$NAMESPACE" || true
+          echo ""
+          echo "=== Pods Status ==="
+          kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" || true
+          echo ""
+          echo "=== Pods Details ==="
+          kubectl describe pods -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" | head -100 || true
+
       - name: Wait for rollout to complete
         run: |
           kubectl rollout status deployment/${{ steps.extract_service.outputs.service_name }} \
@@ -265,8 +278,24 @@ jobs:
         run: |
           NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
-          echo "=== Events ===" && kubectl get events -n "$NAMESPACE" --sort-by=.lastTimestamp | tail -n 50 || true
-          echo "=== Describe deployment ===" && kubectl describe deploy "$SERVICE" -n "$NAMESPACE" || true
+          echo "=== Pods Status ==="
+          kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" || true
+          echo ""
+          echo "=== Events ==="
+          kubectl get events -n "$NAMESPACE" --sort-by=.lastTimestamp | tail -n 50 || true
+          echo ""
+          echo "=== Describe deployment ==="
+          kubectl describe deploy "$SERVICE" -n "$NAMESPACE" || true
+          echo ""
+          echo "=== ReplicaSets ==="
+          kubectl get rs -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" || true
           RS=$(kubectl get rs -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" -o name | tail -n1 || true)
           [ -n "$RS" ] && echo "=== Describe ReplicaSet $RS ===" && kubectl describe "$RS" -n "$NAMESPACE" || true
+          echo ""
+          echo "=== Pod Logs (last 50 lines) ==="
+          PODS=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" -o name || true)
+          for POD in $PODS; do
+            echo "--- Logs for $POD ---"
+            kubectl logs "$POD" -n "$NAMESPACE" --tail=50 || true
+          done
 
