@@ -47,6 +47,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Usar GitHub Environment según el tag de imagen
+    environment:
+      name: ${{ inputs.image_tag == 'prod' && 'prod' || (inputs.image_tag == 'stage' && 'stage' || 'dev') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -268,10 +271,36 @@ jobs:
           kubectl describe pods -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" | head -100 || true
 
       - name: Wait for rollout to complete
+        id: rollout
         run: |
           kubectl rollout status deployment/${{ steps.extract_service.outputs.service_name }} \
             --namespace="${{ steps.cloud_config.outputs.namespace }}" \
             --timeout=5m
+
+      - name: Automatic rollback on failure
+        if: failure() && steps.rollout.outcome == 'failure'
+        run: |
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
+          SERVICE="${{ steps.extract_service.outputs.service_name }}"
+          echo "🔄 Rolling back deployment $SERVICE in namespace $NAMESPACE..."
+          
+          # Verificar si existe el deployment antes de hacer rollback
+          if kubectl get deployment "$SERVICE" -n "$NAMESPACE" >/dev/null 2>&1; then
+            # kubectl rollout undo automáticamente revierte al ReplicaSet anterior que estaba funcionando
+            echo "📦 Reverting to previous ReplicaSet..."
+            kubectl rollout undo deployment/$SERVICE -n "$NAMESPACE"
+            echo "✅ Rollback initiated"
+            
+            # Esperar a que el rollback se complete (con timeout para no bloquear)
+            echo "⏳ Waiting for rollback to complete..."
+            kubectl rollout status deployment/$SERVICE -n "$NAMESPACE" --timeout=3m || {
+              echo "⚠️  Rollback status check timed out or failed, but rollback was initiated"
+            }
+            
+            echo "✅ Rollback completed"
+          else
+            echo "⚠️  Deployment $SERVICE not found in namespace $NAMESPACE, cannot rollback"
+          fi
 
       - name: Diagnostics on failure
         if: failure()
