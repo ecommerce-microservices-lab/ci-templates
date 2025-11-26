@@ -220,6 +220,27 @@ jobs:
           
           echo "✅ RBAC applied successfully for namespace: $NAMESPACE"
 
+      - name: Apply ConfigMap (if exists)
+        run: |
+          NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
+          echo "📋 Applying ConfigMap in namespace: $NAMESPACE"
+          
+          # Aplicar ConfigMap específico del namespace si existe, sino usar base
+          if [ -f "infra-repo/k8s/$NAMESPACE/configmap.yaml" ]; then
+            echo "📦 Using namespace-specific ConfigMap: infra-repo/k8s/$NAMESPACE/configmap.yaml"
+            kubectl apply -f "infra-repo/k8s/$NAMESPACE/configmap.yaml"
+          elif [ -f "infra-repo/k8s/base/configmap.yaml" ]; then
+            echo "📦 Using base ConfigMap: infra-repo/k8s/base/configmap.yaml"
+            # Sustituir ${ENV} por el namespace
+            sed "s/\${ENV}/$NAMESPACE/g" "infra-repo/k8s/base/configmap.yaml" | \
+              sed "s/namespace:.*/namespace: $NAMESPACE/g" | \
+              kubectl apply -f -
+          else
+            echo "⚠️  ConfigMap not found, skipping..."
+          fi
+          
+          echo "✅ ConfigMap applied successfully for namespace: $NAMESPACE"
+
       - name: Update manifest with new image
         run: |
           NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
