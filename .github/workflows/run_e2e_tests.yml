@@ -178,11 +178,80 @@ jobs:
       - name: Run performance test
         run: k6 run tests/performance/load-test.js
 
-      # - name: Run ZAP Baseline Scan
-      #   uses: zaproxy/action-baseline@v0.10.0
-      #   with:
-      #     target: 'http://${{ steps.get_ip.outputs.API_GATEWAY_IP }}:8080'
-      #     fail_action: false
+      - name: Run ZAP Baseline Scan
+        id: zap_scan
+        uses: zaproxy/action-baseline@v0.10.0
+        continue-on-error: true
+        with:
+          target: 'http://${{ steps.get_ip.outputs.API_GATEWAY_IP }}:8080'
+          fail_action: false
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+        env:
+          ZAP_ALERT_LEVEL: 'LOW'
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: |
+            report_html.html
+            report_json.json
+          retention-days: 30
+
+      - name: Check ZAP high severity alerts (Report Only)
+        if: always() && steps.zap_scan.conclusion != 'cancelled'
+        continue-on-error: true
+        run: |
+          echo "🔍 Checking ZAP report for high severity alerts..."
+          echo "⚠️  NOTE: This step will NOT fail the pipeline, but will report findings"
+          echo ""
+          
+          # Install jq if not available
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+          
+          # Check if report exists
+          if [ ! -f report_json.json ]; then
+            echo "⚠️  ZAP report not found, skipping severity check"
+            exit 0
+          fi
+          
+          # Check for high severity alerts (riskcode: 3=HIGH, 4=CRITICAL)
+          # ZAP JSON format: {"@version": "...", "site": [{"@name": "...", "alerts": [{"pluginid": "...", "alert": "...", "riskcode": "3", "riskdesc": "..."}]}]}
+          HIGH_ALERTS=$(jq -r '.site[]?.alerts[]? | select((.riskcode == "3") or (.riskcode == "4")) | "ID: \(.pluginid // "unknown") - \(.alert // "Unknown") - \(.riskdesc // "No description")"' report_json.json 2>/dev/null || echo "")
+          
+          # Count alerts by severity
+          CRITICAL_COUNT=$(jq -r '.site[]?.alerts[]? | select(.riskcode == "4") | .pluginid' report_json.json 2>/dev/null | wc -l | tr -d ' ')
+          HIGH_COUNT=$(jq -r '.site[]?.alerts[]? | select(.riskcode == "3") | .pluginid' report_json.json 2>/dev/null | wc -l | tr -d ' ')
+          MEDIUM_COUNT=$(jq -r '.site[]?.alerts[]? | select(.riskcode == "2") | .pluginid' report_json.json 2>/dev/null | wc -l | tr -d ' ')
+          LOW_COUNT=$(jq -r '.site[]?.alerts[]? | select(.riskcode == "1") | .pluginid' report_json.json 2>/dev/null | wc -l | tr -d ' ')
+          
+          echo "📊 ZAP Scan Summary:"
+          echo "   CRITICAL: $CRITICAL_COUNT"
+          echo "   HIGH:     $HIGH_COUNT"
+          echo "   MEDIUM:   $MEDIUM_COUNT"
+          echo "   LOW:      $LOW_COUNT"
+          echo ""
+          
+          if [ -n "$HIGH_ALERTS" ]; then
+            echo "⚠️  ZAP detected HIGH/CRITICAL severity alerts:"
+            echo "$HIGH_ALERTS"
+            echo ""
+            echo "📋 Review these findings in the ZAP report artifacts"
+            echo "   To allow specific alerts, document them in docs/pruebas/zap-exceptions.md"
+            echo "   Then update the validation script to exclude them by plugin ID"
+            echo ""
+            echo "⚠️  Pipeline continues, but please review these findings"
+            # Don't exit 1, just report
+          else
+            echo "✅ No high severity alerts found"
+          fi
+          
+          # Always exit 0 to not fail the pipeline
+          exit 0
 
       - name: Install Newman
         run: npm install -g newman
