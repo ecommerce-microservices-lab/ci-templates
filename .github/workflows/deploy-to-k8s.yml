@@ -242,6 +242,7 @@ jobs:
           echo "✅ ConfigMap applied successfully for namespace: $NAMESPACE"
 
       - name: Update manifest with new image
+        id: update_manifest
         run: |
           NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
@@ -250,10 +251,13 @@ jobs:
           
           # Check if manifest exists
           if [ ! -f "$MANIFEST_PATH" ]; then
-            echo "❌ Manifest not found: $MANIFEST_PATH"
-            exit 1
+            echo "⚠️  Manifest not found: $MANIFEST_PATH"
+            echo "ℹ️  This service may not be deployed in this namespace (e.g., frontend only in prod)"
+            echo "manifest_exists=false" >> $GITHUB_OUTPUT
+            exit 0
           fi
           
+          echo "manifest_exists=true" >> $GITHUB_OUTPUT
           echo "📝 Found manifest: $MANIFEST_PATH"
           
           # Update image line robustly (replace entire line)
@@ -262,6 +266,7 @@ jobs:
           echo "✅ Updated image to: $NEW_IMAGE"
 
       - name: Apply Kubernetes manifest
+        if: steps.update_manifest.outputs.manifest_exists == 'true'
         run: |
           NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
@@ -271,6 +276,7 @@ jobs:
           echo "✅ Manifest applied successfully"
 
       - name: Enforce final image (safety)
+        if: steps.update_manifest.outputs.manifest_exists == 'true'
         run: |
           NAMESPACE="${{ steps.cloud_config.outputs.namespace }}"
           SERVICE="${{ steps.extract_service.outputs.service_name }}"
@@ -292,6 +298,7 @@ jobs:
           kubectl describe pods -n "$NAMESPACE" -l app.kubernetes.io/name="$SERVICE" | head -100 || true
 
       - name: Wait for rollout to complete
+        if: steps.update_manifest.outputs.manifest_exists == 'true'
         id: rollout
         run: |
           kubectl rollout status deployment/${{ steps.extract_service.outputs.service_name }} \
